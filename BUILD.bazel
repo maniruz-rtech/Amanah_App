@@ -1,0 +1,37 @@
+load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain", "kt_compiler_plugin")
+
+# ── NullAway Error-Prone plugin wired at the root so every kt_* target picks
+# it up via the toolchain; individual targets opt-in via plugins attribute.
+kt_compiler_plugin(
+    name = "nullaway_plugin",
+    compile_phase = True,
+    id = "com.uber.nullaway",
+    options = {
+        "AnnotatedPackages": "com.amanah",
+        "TreatGeneratedAsUnannotated": "true",
+    },
+    deps = ["@maven//:com_uber_nullaway_nullaway"],
+    visibility = ["//visibility:public"],
+)
+
+# ── Compose compiler plugin ───────────────────────────────────────────────────
+# Kotlin 2.x ships its own Compose compiler plugin (replaces the standalone
+# androidx.compose.compiler artifact used with Kotlin 1.9 and earlier). Every
+# kt_*_library with @Composable functions must opt in via `plugins = [...]`.
+kt_compiler_plugin(
+    name = "compose_plugin",
+    compile_phase = True,
+    id = "androidx.compose.compiler.plugins.kotlin",
+    deps = [
+        "@maven//:org_jetbrains_kotlin_kotlin_compose_compiler_plugin",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# ── Kotlin toolchain (JVM target 17) ──────────────────────────────────────────
+# rules_kotlin defaults to JVM target 1.8, which cannot inline the JVM-11+
+# bytecode shipped by Compose/AndroidX. Registered in MODULE.bazel.
+define_kt_toolchain(
+    name = "kotlin_toolchain",
+    jvm_target = "17",
+)

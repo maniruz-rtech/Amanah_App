@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Production traffic is HTTPS/WSS only (cleartext denied by default on API 28+).
+  The single exception is the Android emulator's host loopback alias, used by
+  debug builds talking to a local backend (AppGraph.DEFAULT_API_BASE_URL).
+  These hostnames never resolve to a routable production service.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

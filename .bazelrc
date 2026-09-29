@@ -1,0 +1,51 @@
+# ── Bazel 8 flags ─────────────────────────────────────────────────────────────
+common --enable_bzlmod
+common --incompatible_enable_android_toolchain_resolution
+
+# ── Kotlin compile workers ─────────────────────────────────────────────────────
+build --strategy=KotlinCompile=worker
+build --worker_sandboxing
+build --worker_multiplex
+
+# ── JVM target ────────────────────────────────────────────────────────────────
+# Dependencies (Compose 1.12, AndroidX 1.x) ship JVM 11+ bytecode with inline
+# functions; Java targets 17 here, Kotlin via //:kotlin_toolchain (BUILD.bazel).
+build --java_language_version=17
+build --tool_java_language_version=17
+build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
+
+# ── Android ───────────────────────────────────────────────────────────────────
+build --fat_apk_cpu=arm64-v8a,x86_64
+build --android_databinding_use_v3_4_args
+
+# Pin ANDROID_HOME at repo-rule time so the @androidsdk extension resolves
+# without requiring contributors to export it in every shell. Override locally
+# by exporting ANDROID_HOME or via a user.bazelrc with a different value.
+common --repo_env=ANDROID_HOME=/home/mzaman/Android/Sdk
+
+# ── NullAway (Error Prone) ─────────────────────────────────────────────────────
+build --javacopt="-XDcompilePolicy=simple"
+build --javacopt="-Xplugin:ErrorProne -XepOpt:NullAway:AnnotatedPackages=com.amanah"
+
+# ── Disk cache (shared across bazel-diff runs) ────────────────────────────────
+build --disk_cache=~/.cache/amanah-bazel-disk
+build --remote_local_fallback
+build --jobs=auto
+
+# ── bazel-diff: reproducible action hashes require stable timestamps ───────────
+build --guard_against_concurrent_changes
+build --incompatible_strict_action_env
+
+# ── Debug config ──────────────────────────────────────────────────────────────
+build:debug   --define=BUILD_TYPE=debug
+build:debug   --javacopt="-g"
+build:release --define=BUILD_TYPE=release
+build:release --config=android_release
+
+build:android_release --compilation_mode=opt
+build:android_release --strip=always
+
+# ── Test ──────────────────────────────────────────────────────────────────────
+test --test_output=errors
+test --test_env=ROBOLECTRIC_SDK=34

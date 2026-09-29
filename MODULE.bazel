@@ -1,0 +1,158 @@
+module(
+    name = "amanah_app",
+    version = "2.0.0",
+    compatibility_level = 2,
+)
+
+# ── Bazel 8 core deps ──────────────────────────────────────────────────────────
+bazel_dep(name = "rules_android",       version = "0.7.3")
+bazel_dep(name = "rules_kotlin",        version = "2.4.20")
+bazel_dep(name = "rules_jvm_external",  version = "7.1")
+bazel_dep(name = "bazel_skylib",        version = "1.9.2")
+bazel_dep(name = "platforms",           version = "1.1.0")
+
+# ── Kotlin toolchain ──────────────────────────────────────────────────────────
+# rules_kotlin 2.4.x registers its default toolchain (Kotlin 2.4.x) itself; the
+# old `kotlin_toolchain.register(kotlin_version=...)` extension no longer exists.
+# We register our own toolchain (JVM target 17) — see //:kotlin_toolchain.
+register_toolchains("//:kotlin_toolchain")
+
+# ── Android SDK toolchain ─────────────────────────────────────────────────────
+# The module extension creates @androidsdk pointing at $ANDROID_HOME (pinned via
+# .bazelrc `common --repo_env=ANDROID_HOME=...`). The extension impl itself does
+# NOT register the SDK toolchain — we have to do it explicitly here, otherwise
+# `--incompatible_enable_android_toolchain_resolution` errors with
+# "No matching toolchains found for types ...:sdk_toolchain_type".
+android_sdk_repository_extension = use_extension(
+    "@rules_android//rules/android_sdk_repository:rule.bzl",
+    "android_sdk_repository_extension",
+)
+android_sdk_repository_extension.configure(
+    api_level = 36,
+    build_tools_version = "36.0.0",
+)
+use_repo(android_sdk_repository_extension, "androidsdk")
+register_toolchains("@androidsdk//:sdk-toolchain", "@androidsdk//:all")
+
+# ── Maven dependencies ─────────────────────────────────────────────────────────
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+
+maven.install(
+    name = "maven",
+    artifacts = [
+        # ── Compose (release train 1.12.x; BOM 2026.09.00) ────────────────────
+        "androidx.activity:activity-compose:1.13.0",
+        "androidx.compose.ui:ui:1.12.1",
+        "androidx.compose.ui:ui-tooling:1.12.1",
+        "androidx.compose.ui:ui-tooling-preview:1.12.1",
+        "androidx.compose.foundation:foundation:1.12.1",
+        "androidx.compose.material3:material3:1.4.0",
+        "androidx.compose.material:material-icons-extended:1.7.8",
+        "androidx.compose.animation:animation:1.12.1",
+        "androidx.compose.runtime:runtime:1.12.1",
+        "androidx.lifecycle:lifecycle-runtime-compose:2.11.0",
+
+        # ── Explicit pins (see version_conflict_policy below) ─────────────────
+        "androidx.compose.material:material:1.12.1",
+        "androidx.compose.material:material-ripple:1.12.1",
+        "androidx.compose.material:material-icons-core:1.7.8",
+        "androidx.activity:activity:1.13.0",
+        "androidx.activity:activity-ktx:1.13.0",
+        "androidx.core:core:1.19.1",
+        "androidx.collection:collection:1.6.0",
+        "androidx.collection:collection-jvm:1.6.0",
+        "androidx.emoji2:emoji2:1.7.0",
+        "androidx.lifecycle:lifecycle-viewmodel:2.11.0",
+        "androidx.lifecycle:lifecycle-livedata:2.11.0",
+        "androidx.lifecycle:lifecycle-livedata-core:2.11.0",
+        "androidx.lifecycle:lifecycle-viewmodel-savedstate:2.11.0",
+        "androidx.savedstate:savedstate:1.5.0",
+        "androidx.savedstate:savedstate-android:1.5.0",
+        "androidx.fragment:fragment:1.9.1",
+        "androidx.lifecycle:lifecycle-runtime:2.11.0",
+
+        # ── Core AndroidX ─────────────────────────────────────────────────────
+        "androidx.core:core-ktx:1.19.1",
+        "androidx.startup:startup-runtime:1.2.0",
+
+        # ── MVICore 1.4.0 (JitPack; latest release, unmaintained upstream) ────
+        # mvicore-debugdrawer is omitted (broken transitive POM on JitPack); the
+        # debug UI is the hand-rolled AmanahDebugDrawer.
+        "com.github.badoo.MVICore:mvicore:1.4.0",
+        "com.github.badoo.MVICore:mvicore-android:1.4.0",
+        "com.github.badoo.MVICore:binder:1.4.0",
+
+        # ── Reaktive (KMP: platform -jvm artifacts) ───────────────────────────
+        "com.badoo.reaktive:reaktive-jvm:2.4.0",
+        "com.badoo.reaktive:reaktive-annotations-jvm:2.4.0",
+
+        # ── RxJava 2 (MVICore 1.4 API is RxJava2 based; 2.2.21 is final) ──────
+        "io.reactivex.rxjava2:rxjava:2.2.21",
+
+        # ── Memory safety ─────────────────────────────────────────────────────
+        "com.badoo.mobile:android-weak-handler:1.1",
+        "com.uber.nullaway:nullaway:0.14.2",
+
+        # ── Geospatial (Uber H3) ──────────────────────────────────────────────
+        "com.uber:h3:4.5.0",
+
+        # ── Maps ──────────────────────────────────────────────────────────────
+        "com.google.maps.android:maps-compose:8.6.0",
+        "com.google.android.gms:play-services-maps:20.0.0",
+        "com.google.android.gms:play-services-location:21.4.0",
+
+        # ── Networking ────────────────────────────────────────────────────────
+        "com.squareup.okhttp3:okhttp:5.5.0",
+        "com.squareup.okhttp3:logging-interceptor:5.5.0",
+        "com.squareup.retrofit2:retrofit:3.0.0",
+        "com.squareup.retrofit2:converter-gson:3.0.0",
+        "com.google.code.gson:gson:2.14.0",
+
+        # ── Kotlin & Coroutines ───────────────────────────────────────────────
+        "org.jetbrains.kotlin:kotlin-stdlib:2.4.20",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0",
+
+        # ── Security / storage ────────────────────────────────────────────────
+        # Token storage: Tink AEAD over Jetpack DataStore (TinkTokenStore.kt).
+        "com.google.crypto.tink:tink-android:1.23.0",
+        "androidx.datastore:datastore-preferences-android:1.2.1",
+        "androidx.datastore:datastore-preferences-core:1.2.1",
+        "androidx.datastore:datastore-core:1.2.1",
+        "androidx.datastore:datastore:1.2.1",
+        "androidx.lifecycle:lifecycle-process:2.11.0",
+        "androidx.lifecycle:lifecycle-runtime-ktx:2.11.0",
+        "androidx.lifecycle:lifecycle-common:2.11.0",
+
+        # ── Push notifications (FCM) ──────────────────────────────────────────
+        "com.google.firebase:firebase-messaging:25.1.3",
+        "com.google.firebase:firebase-common:23.0.0",
+
+        # ── Compose compiler plugin — MUST equal the Kotlin compiler version
+        # bundled by rules_kotlin (2.4.20). Non-embeddable variant: rules_kotlin
+        # loads the regular (non-shaded) compiler.
+        "org.jetbrains.kotlin:kotlin-compose-compiler-plugin:2.4.20",
+
+        # ── Test ──────────────────────────────────────────────────────────────
+        "junit:junit:4.13.2",
+        "org.jetbrains.kotlin:kotlin-test:2.4.20",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0",
+        "io.mockk:mockk-jvm:1.14.11",
+    ],
+    repositories = [
+        "https://maven.google.com",
+        "https://repo1.maven.org/maven2",
+        "https://jitpack.io",
+    ],
+    # Pinned lock file — regenerate after changing `artifacts` with:
+    #   REPIN=1 bazel run @maven//:pin      (or `bazel run @maven//:pin`)
+    lock_file = "//:maven_install.json",
+
+    # Firebase + Play Services pull older transitive versions of
+    # firebase-common, play-services-basement, etc. that conflict with the
+    # newer versions declared in `artifacts`. "pinned" tells coursier to keep
+    # the explicitly-declared version and ignore transitive downgrades.
+    version_conflict_policy = "pinned",
+)
+
+use_repo(maven, "maven")

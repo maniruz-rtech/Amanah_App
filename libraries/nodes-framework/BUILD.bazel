@@ -1,0 +1,18 @@
+load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
+
+kt_android_library(
+    name = "nodes-framework",
+    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    plugins = ["//:nullaway_plugin"],
+    deps = [
+        "@maven//:com_badoo_mobile_android_weak_handler",
+        "@maven//:com_badoo_reaktive_reaktive_jvm",
+        "@maven//:com_badoo_reaktive_reaktive_annotations_jvm",
+        "@maven//:com_github_badoo_MVICore_mvicore",
+        "@maven//:io_reactivex_rxjava2_rxjava",
+        "@maven//:com_github_badoo_MVICore_mvicore_android",
+        "@maven//:androidx_lifecycle_lifecycle_runtime_compose",
+        "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
+    ],
+    visibility = ["//visibility:public"],
+)

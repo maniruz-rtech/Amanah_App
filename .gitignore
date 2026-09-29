@@ -1,0 +1,33 @@
+# ── Bazel ─────────────────────────────────────────────────────────────────────
+/bazel-*
+/.bazel/
+
+# ── Android / IDE ─────────────────────────────────────────────────────────────
+*.iml
+.gradle/
+local.properties
+.idea/
+*.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ── Keys / secrets ────────────────────────────────────────────────────────────
+*.jks
+*.keystore
+google-services.json
+
+# ── Runtime / local artifacts ────────────────────────────────────────────────
+*.log
+*.pid
+celerybeat-schedule*
+.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Amanah</string>
+    <string name="splash_tagline">Your trusted companion</string>
+    <string name="dashboard_title">Dashboard</string>
+    <string name="toggle_dark_mode">Toggle dark mode</string>
+    <string name="retry">Retry</string>
+    <string name="loading">Loading…</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+</resources>

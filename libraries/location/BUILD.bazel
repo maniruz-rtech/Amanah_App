@@ -1,0 +1,13 @@
+load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
+
+kt_android_library(
+    name = "location",
+    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    plugins = ["//:nullaway_plugin"],
+    deps = [
+        "@maven//:com_uber_h3",
+        "@maven//:com_google_android_gms_play_services_location",
+        "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
+    ],
+    visibility = ["//visibility:public"],
+)

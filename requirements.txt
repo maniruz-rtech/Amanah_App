@@ -1,0 +1,25 @@
+# --- Geospatial & Discovery Engine ---
+# Uber's hexagonal hierarchical indexing for location-based alerts [1, 2]
+h3>=3.7.6
+
+# --- Machine Learning & Matching Algorithms ---
+# For community matching logic and recommendation scoring [3, 4]
+causalml
+
+# Bayesian forecasting for real-time alert prediction [5]
+orbit-ml
+
+# --- API & Service Layer ---
+# Recommended for building high-performance ML/AI internal APIs [3, 6]
+fastapi
+uvicorn[standard]
+pydantic
+
+# --- Build Automation & Tooling ---
+# Required for bazel-diff scripts to calculate affected targets [7, 8]
+protobuf
+gitpython
+
+# --- Data Handling ---
+pandas
+numpy

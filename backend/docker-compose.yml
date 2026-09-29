@@ -1,0 +1,141 @@
+# Amanah — development stack
+#
+#   docker compose up -d --build
+#
+# Images (see docs/project-state/DEPENDENCY_VERSIONS.md):
+#   PostgreSQL 18 + PostGIS 3.6   Redis 8   Python 3.12 (app image)
+#
+# Host ports are bound to 127.0.0.1 only and are overridable via env
+# (DB_PORT / REDIS_PORT / API_PORT) so several checkouts can coexist.
+#
+# UPGRADING FROM THE OLD STACK (PostgreSQL 16 volume): the data directory
+# layout differs between major versions and PG18 uses a new mount point, so the
+# old `postgres_data` volume cannot be reused. Dump and restore instead:
+#   docker exec <old_db> pg_dump -U amanah -Fc amanah > amanah.dump
+#   docker compose up -d db && pg_restore -U amanah -d amanah --no-owner amanah.dump
+
+x-app-env: &app-env
+  ENVIRONMENT: dev
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-amanah}:${POSTGRES_PASSWORD:-amanah_dev_password}@db:5432/${POSTGRES_DB:-amanah}
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  CELERY_RESULT_BACKEND: redis://redis:6379/2
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-jwt-secret-change-me-0123456789}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-only-encryption-key-32-bytes!!}
+
+x-celery: &celery
+  # Same image tag as the api service: built once, shared by api/worker/beat.
+  image: amanah-backend:dev
+  build:
+    context: .
+    dockerfile: Dockerfile
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  # PostgreSQL + PostGIS
+  db:
+    image: postgis/postgis:18-3.6
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-amanah}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-amanah_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-amanah}
+    volumes:
+      # PG18+ images keep PGDATA under /var/lib/postgresql/<major>/, so the
+      # volume is mounted one level up.
+      - postgres_data:/var/lib/postgresql
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${DB_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-amanah} -d ${POSTGRES_DB:-amanah}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis — Celery broker/result backend + readiness probe
+  redis:
+    image: redis:8-alpine
+    # AOF keeps queued tasks across restarts; allkeys-lru is NOT used because
+    # evicting broker keys would silently drop queued tasks.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # FastAPI backend
+  api:
+    image: amanah-backend:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      <<: *app-env
+      DEBUG: "true"
+      # pydantic-settings v2 parses list[str] as JSON first
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:8080","http://10.0.2.2"]'
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # Celery worker. Tasks are routed to named queues (app/workers/celery_app.py);
+  # a worker only consumes the queues it is told about (-Q), so ALL of them must
+  # be listed or routed tasks (push, SMS, escalation…) are never executed.
+  celery_worker:
+    <<: *celery
+    environment:
+      <<: *app-env
+    volumes:
+      - .:/app
+    command: >
+      celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+      -Q default,notifications,incidents,maintenance,sms,email
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d celery@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  # Celery beat (scheduler) — exactly one instance. Schedule file lives in /tmp
+  # so it is not written into the bind-mounted source tree.
+  celery_beat:
+    <<: *celery
+    environment:
+      <<: *app-env
+    volumes:
+      - .:/app
+    depends_on:
+      celery_worker:
+        condition: service_started
+    command: celery -A app.workers.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    healthcheck:
+      test: ["CMD-SHELL", "ls /tmp/celerybeat-schedule* > /dev/null 2>&1"]
+      interval: 60s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:

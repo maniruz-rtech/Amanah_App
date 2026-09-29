@@ -1,0 +1,35 @@
+load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
+
+kt_android_library(
+    name = "feature-admin",
+    srcs = glob(["src/main/kotlin/**/*.kt"]),
+    custom_package = "com.amanah.feature.admin",
+    manifest = "src/main/AndroidManifest.xml",
+    plugins = ["//:nullaway_plugin", "//:compose_plugin"],
+    deps = [
+        "//libraries/nodes-framework",
+        "//libraries/location",
+        "//feature-auth",
+        "//feature-core",
+        "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
+        "@maven//:androidx_compose_ui_ui",
+        "@maven//:androidx_compose_foundation_foundation",
+        "@maven//:androidx_compose_material3_material3",
+        "@maven//:androidx_compose_material_material_icons_extended",
+        "@maven//:androidx_compose_animation_animation",
+        "@maven//:androidx_compose_runtime_runtime",
+        "@maven//:com_github_badoo_MVICore_mvicore",
+        "@maven//:io_reactivex_rxjava2_rxjava",
+        "@maven//:com_github_badoo_MVICore_binder",
+        "@maven//:com_badoo_reaktive_reaktive_jvm",
+        "@maven//:com_badoo_mobile_android_weak_handler",
+        # Maps (alert-detail screen)
+        "@maven//:com_google_maps_android_maps_compose",
+        "@maven//:com_google_android_gms_play_services_maps",
+        # Coroutines (repository background work)
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_android",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@maven//:com_squareup_retrofit2_retrofit",
+    ],
+    visibility = ["//visibility:public"],
+)
